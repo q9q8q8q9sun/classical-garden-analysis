@@ -600,6 +600,82 @@ body {
   margin: 12px auto 0;
 }
 
+/* ========== Settings Modal ========== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+.modal h3 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+.modal label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 6px;
+  margin-top: 14px;
+}
+.modal input, .modal select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  color: var(--text);
+  font-family: var(--font-body);
+  transition: border-color var(--transition);
+}
+.modal input:focus, .modal select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+.modal .hint {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.modal .hint a {
+  color: var(--primary);
+  text-decoration: none;
+}
+.modal .hint a:hover { text-decoration: underline; }
+.api-status {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.api-status.ok { background: var(--bamboo); }
+.api-status.missing { background: var(--primary); }
+
 /* ========== Responsive (min-width guard) ========== */
 @media (max-width: 1023px) {
   .sidebar { transform: translateX(calc(-1 * var(--sidebar-w))); }
@@ -621,6 +697,7 @@ body {
       <h1>古典园林<br>文献解析</h1>
     </div>
     <div class="sidebar-actions">
+      <button onclick="openSettings()" title="API 设置"><span class="api-status missing" id="apiStatusDot"></span>设置</button>
       <button onclick="clearAllHistory()" title="清空全部历史记录">清空记录</button>
     </div>
   </div>
@@ -690,6 +767,29 @@ body {
         <button class="btn btn-secondary" onclick="copyReport()">复制全部报告</button>
         <button class="btn btn-secondary" onclick="downloadReport()">下载报告 (.txt)</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h3>API 设置</h3>
+    <label for="apiKeyInput">通义千问 API Key</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx">
+    <div class="hint">
+      请前往 <a href="https://dashscope.console.aliyun.com/apiKey" target="_blank">阿里云 DashScope 控制台</a> 获取 API Key。<br>
+      开通通义千问服务后即可免费创建，qwen-turbo 模型有免费额度。
+    </div>
+    <label for="modelSelect">模型选择</label>
+    <select id="modelSelect">
+      <option value="qwen-turbo">qwen-turbo（快速，有免费额度）</option>
+      <option value="qwen-plus">qwen-plus（质量更高）</option>
+      <option value="qwen-max">qwen-max（最强，消耗额度较多）</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+      <button class="btn btn-primary" onclick="saveSettings()">保存</button>
     </div>
   </div>
 </div>
@@ -1270,55 +1370,85 @@ async function startAnalysis() {
     return;
   }
 
+  if (!ensureApiKeys()) return;
+
   $('analyzeBtn').disabled = true;
+  $('analyzeBtn').querySelector('span').textContent = '解析中...';
   $('results').classList.remove('active');
 
   const proc = $('processing');
   proc.classList.add('active');
   resetSteps();
 
-  const delays = [600, 900, 800, 1000, 700];
+  try {
+    // 翻译阶段：动画步骤 0-1
+    animateStep(0);
+    const translationPromise = qwenTranslate(text);
+    await sleep(1200);
+    await animateStep(1);
+    const translation = await translationPromise;
+    await sleep(600);
+    await animateStep(2);
 
-  for (let i = 0; i < 5; i++) {
-    await animateStep(i);
-    await sleep(delays[i]);
+    // 分析阶段：动画步骤 2-4
+    const analysisPromise = qwenAnalyze(text);
+    await sleep(1200);
+    await animateStep(3);
+    const analysis = await analysisPromise;
+    await sleep(500);
+    await animateStep(4);
+    await sleep(400);
+
+    const result = {
+      translation: translation,
+      elements: analysis.elements || { title: '园林四要素', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      design: analysis.design || { title: '四要素营造思想', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      philosophy: analysis.philosophy || { title: '整体构园思想', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      owner: analysis.owner || { title: '园主营造经历', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      location: analysis.location || { title: '规模地点选址', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      activities: analysis.activities || { title: '园林中的活动', content: '<div class="card-empty">本文献中未提及此方面内容</div>' },
+      interests: analysis.interests || []
+    };
+
+    currentResult = result;
+    proc.classList.remove('active');
+
+    renderResults(result);
+    $('results').classList.add('active');
+
+    const title = text.slice(0, 20).replace(/\n/g, ' ') + (text.length > 20 ? '...' : '');
+    const record = {
+      id: uuid(),
+      title,
+      sourceText: text,
+      translation: result.translation,
+      analysis: {
+        elements: result.elements,
+        design: result.design,
+        philosophy: result.philosophy,
+        owner: result.owner,
+        location: result.location,
+        activities: result.activities,
+      },
+      interests: result.interests,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    saveHistory(record);
+    currentHistoryId = record.id;
+    renderHistory();
+
+    showToast('解析完成', 'success');
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (e) {
+    console.error('分析失败:', e);
+    proc.classList.remove('active');
+    showToast('解析失败: ' + e.message, 'error');
+  } finally {
+    $('analyzeBtn').disabled = false;
+    $('analyzeBtn').querySelector('span').textContent = '开始解析';
   }
-
-  const result = analyzeText(text);
-  currentResult = result;
-
-  await sleep(300);
-  proc.classList.remove('active');
-
-  renderResults(result);
-  $('results').classList.add('active');
-
-  const title = text.slice(0, 20).replace(/\n/g, ' ') + (text.length > 20 ? '...' : '');
-  const record = {
-    id: uuid(),
-    title,
-    sourceText: text,
-    translation: result.translation,
-    analysis: {
-      elements: result.elements,
-      design: result.design,
-      philosophy: result.philosophy,
-      owner: result.owner,
-      location: result.location,
-      activities: result.activities,
-    },
-    interests: result.interests,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  };
-  saveHistory(record);
-  currentHistoryId = record.id;
-  renderHistory();
-
-  $('analyzeBtn').disabled = false;
-  showToast('解析完成', 'success');
-
-  $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1335,6 +1465,132 @@ async function animateStep(idx) {
   if (idx > 0) steps[idx-1].classList.remove('active');
   if (idx > 0) steps[idx-1].classList.add('done');
   steps[idx].classList.add('active');
+}
+
+// ======================================================================
+// 通义千问 API 集成
+// ======================================================================
+const API_KEY_STORAGE = 'garden_qwen_api_key';
+const MODEL_STORAGE = 'garden_qwen_model';
+const API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+
+function getApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
+function getModel() { return localStorage.getItem(MODEL_STORAGE) || 'qwen-turbo'; }
+
+function updateApiStatus() {
+  const dot = document.getElementById('apiStatusDot');
+  if (!dot) return;
+  if (getApiKey()) {
+    dot.className = 'api-status ok';
+    dot.title = 'API Key 已配置';
+  } else {
+    dot.className = 'api-status missing';
+    dot.title = '未配置 API Key';
+  }
+}
+
+function openSettings() {
+  $('apiKeyInput').value = getApiKey();
+  $('modelSelect').value = getModel();
+  $('settingsModal').classList.add('active');
+}
+
+function closeSettings() {
+  $('settingsModal').classList.remove('active');
+}
+
+function saveSettings() {
+  const key = $('apiKeyInput').value.trim();
+  const model = $('modelSelect').value;
+  localStorage.setItem(API_KEY_STORAGE, key);
+  localStorage.setItem(MODEL_STORAGE, model);
+  updateApiStatus();
+  closeSettings();
+  showToast(key ? 'API 设置已保存' : 'API Key 已清除', key ? 'success' : 'info');
+}
+
+function ensureApiKeys() {
+  if (!getApiKey()) {
+    openSettings();
+    showToast('请先配置通义千问 API Key', 'error');
+    return false;
+  }
+  return true;
+}
+
+async function callQwenAPI(userPrompt, systemPrompt) {
+  const apiKey = getApiKey();
+  const model = getModel();
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    let errMsg = 'API 请求失败 (' + response.status + ')';
+    try { const ej = JSON.parse(errText); if (ej.message) errMsg = ej.message; } catch(e) {}
+    throw new Error(errMsg);
+  }
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message || 'API 返回错误');
+  return data.choices[0].message.content;
+}
+
+async function qwenTranslate(text) {
+  const sysPrompt = '你是一位精通古汉语的文学专家，尤其擅长古典园林文献（园记、园诗、赋等）的翻译。你的任务是将文言文准确、优美地翻译为现代白话文。翻译要求：忠实原文、语言流畅优美、保留文化意象、对专有名词（人名、地名、官职、建筑名等）给予准确处理。';
+  const userPrompt = '请将以下古典园林文献翻译为现代白话文。\n\n要求：\n1. 按自然段落或意义段落分段翻译\n2. 每段包含原文（original）、白话译文（translated）、难词注释（notes）\n3. 译文要准确流畅，兼具文学性\n4. 注释中解释难词、典故、人名、地名、官职等\n\n请以JSON格式返回：\n{"translation":[{"original":"原文段落","translated":"白话译文","notes":"注释（可选）"}]}\n\n文献内容：\n' + text;
+  try {
+    const result = await callQwenAPI(userPrompt, sysPrompt);
+    const parsed = JSON.parse(result);
+    if (parsed.translation && Array.isArray(parsed.translation)) {
+      return parsed.translation.filter(p => p.original && p.translated);
+    }
+    throw new Error('返回格式不正确');
+  } catch (e) {
+    console.warn('Qwen 翻译失败，使用本地回退:', e.message);
+    showToast('AI翻译失败，使用基础翻译: ' + e.message, 'error');
+    return simulateTranslation(text);
+  }
+}
+
+async function qwenAnalyze(text) {
+  const sysPrompt = '你是一位中国古典园林研究专家，精通园林史、造园理论和古典文学。你需要对给定的古典园林文献进行深入的六维度分析。分析要专业、深入，使用园林研究的专业术语，引用原文中的关键语句作为依据。';
+  const userPrompt = '请对以下古典园林文献进行全面的六维度分析。\n\n文献内容：\n' + text + '\n\n请从以下六个维度进行分析：\n1. 园林四要素（elements）：分析山石、水系、建筑、植物四类要素在文献中的体现\n2. 营造思想（design）：分析四类要素各自的营造手法和设计理念\n3. 整体构园思想（philosophy）：总结整体造园理念、美学追求和文化内涵\n4. 园主经历（owner）：分析园主身份、仕途经历、造园动机和心境\n5. 规模选址（location）：分析园林的地理位置、占地面积、选址考量\n6. 园林活动（activities）：分析园中发生的各类活动及其文化意义\n\n同时提出3-7个有价值的兴趣点（interests），每个包含标题（title）和详细描述（desc）。\n\n要求：\n- 分析要专业深入，引用原文语句作为依据\n- 使用园林研究的专业术语\n- 如某维度在文献中确实没有涉及，内容设为null\n\n请以JSON格式返回：\n{"elements":{"title":"园林四要素","content":"分析内容（纯文本，用段落分隔）"},"design":{"title":"四要素营造思想","content":"..."},"philosophy":{"title":"整体构园思想","content":"..."},"owner":{"title":"园主营造经历","content":"..."},"location":{"title":"规模地点选址","content":"..."},"activities":{"title":"园林中的活动","content":"..."},"interests":[{"title":"兴趣点标题","desc":"详细描述"}]}\n\n注意：content字段为纯文本，用换行符分隔段落，不要使用HTML标签。';
+  try {
+    const result = await callQwenAPI(userPrompt, sysPrompt);
+    const parsed = JSON.parse(result);
+    const dims = ['elements', 'design', 'philosophy', 'owner', 'location', 'activities'];
+    dims.forEach(d => {
+      if (parsed[d] && parsed[d].content) {
+        parsed[d].content = textToHtml(parsed[d].content);
+      }
+    });
+    return parsed;
+  } catch (e) {
+    console.warn('Qwen 分析失败，使用本地回退:', e.message);
+    showToast('AI分析失败，使用基础分析: ' + e.message, 'error');
+    return generateAnalysis(text);
+  }
+}
+
+function textToHtml(text) {
+  if (!text) return '<div class="card-empty">本文献中未提及此方面内容</div>';
+  return text.split(/\n\n+/).filter(p => p.trim()).map(p => {
+    const escaped = escapeHtml(p.trim());
+    return '<p>' + escaped.replace(/\n/g, '<br>') + '</p>';
+  }).join('');
 }
 
 // ---- 渲染结果 ----
@@ -1567,6 +1823,7 @@ function downloadReport() {
 }
 
 // ---- 初始化 ----
+updateApiStatus();
 renderHistory();
 </script>
 </body>

@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>古典园林文献解析智能体</title>
+<style>
+/* ========== CSS Variables ========== */
+:root {
+  --bg: #f5f0e8;
+  --sidebar-bg: #ebe5d9;
+  --card-bg: #fffbf0;
+  --primary: #9d2933;
+  --primary-light: #c45a60;
+  --primary-bg: rgba(157,41,51,0.06);
+  --bamboo: #789262;
+  --bamboo-light: #a3b893;
+  --stone: #5b8fa8;
+  --rock: #8c7e6e;
+  --plant: #5a9e6f;
+  --gold: #c4a35a;
+  --text: #3a3632;
+  --text2: #6b7b8d;
+  --text3: #9aa5b0;
+  --border: #d8cfc0;
+  --border-light: #e8e0d4;
+  --shadow: rgba(60,50,40,0.08);
+  --shadow-md: rgba(60,50,40,0.12);
+  --radius: 8px;
+  --sidebar-w: 300px;
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+  --font-body: "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --font-serif: "Noto Serif SC","Source Han Serif SC","STSongti-SC","SimSun",serif;
+  --font-kai: "KaiTi","STKaiti","AR PL UKai CN",serif;
+}
+
+/* ========== Reset & Base ========== */
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.8;
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ========== Sidebar ========== */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 100;
+  transition: transform var(--transition);
+}
+.sidebar.collapsed { transform: translateX(calc(-1 * var(--sidebar-w))); }
+.sidebar-header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sidebar-brand .icon {
+  width: 36px; height: 36px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-family: var(--font-serif);
+  flex-shrink: 0;
+}
+.sidebar-brand h1 {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-serif);
+  color: var(--text);
+  line-height: 1.3;
+}
+.sidebar-actions {
+  display: flex; gap: 8px;
+}
+.sidebar-actions button {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sidebar-actions button:hover { border-color: var(--primary); color: var(--primary); }
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.history-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  padding: 40px 20px;
+  line-height: 2;
+}
+.history-item {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: all var(--transition);
+  position: relative;
+  border: 1px solid transparent;
+}
+.history-item:hover { background: rgba(255,255,255,0.6); border-color: var(--border-light); }
+.history-item.active {
+  background: var(--card-bg);
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.history-item .h-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.history-item .h-time {
+  font-size: 11.5px;
+  color: var(--text3);
+}
+.history-item .h-delete {
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.history-item:hover .h-delete { opacity: 1; }
+.history-item .h-delete:hover { background: rgba(157,41,51,0.1); color: var(--primary); }
+.history-count {
+  padding: 8px 20px;
+  font-size: 11px;
+  color: var(--text3);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+/* ========== Main Content ========== */
+.main {
+  flex: 1;
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+  transition: margin-left var(--transition);
+  position: relative;
+}
+.sidebar.collapsed ~ .main { margin-left: 0; }
+.toggle-sidebar {
+  position: fixed;
+  top: 16px;
+  left: calc(var(--sidebar-w) + 12px);
+  z-index: 101;
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card-bg);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2);
+  font-size: 14px;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.toggle-sidebar:hover { border-color: var(--primary); color: var(--primary); }
+.sidebar.collapsed ~ .main .toggle-sidebar { left: 12px; }
+
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 40px 60px;
+}
+
+/* ========== Hero / Header ========== */
+.hero {
+  text-align: center;
+  padding: 20px 0 32px;
+}
+.hero h2 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.hero p {
+  color: var(--text2);
+  font-size: 14px;
+}
+
+/* ========== Input Section ========== */
+.input-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+.input-section label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.textarea-wrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.textarea-wrap:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+.textarea-wrap textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 16px 18px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  font-family: var(--font-kai);
+  font-size: 15px;
+  line-height: 2;
+  color: var(--text);
+  background: transparent;
+}
+.textarea-wrap textarea::placeholder { color: var(--text3); font-family: var(--font-body); }
+.char-count {
+  position: absolute;
+  right: 12px; bottom: 8px;
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--card-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(157,41,51,0.2);
+}
+.btn-primary:hover { background: #b3333d; box-shadow: 0 4px 16px rgba(157,41,51,0.3); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-secondary {
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.input-hint {
+  font-size: 12px;
+  color: var(--text3);
+  margin-left: auto;
+}
+.upload-input { display: none; }
+
+/* ========== Processing Status ========== */
+.processing {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px var(--shadow);
+  display: none;
+}
+.processing.active { display: block; }
+.processing h3 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  margin-bottom: 24px;
+  color: var(--text);
+  text-align: center;
+}
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex: 1;
+  max-width: 140px;
+}
+.step-circle {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  color: var(--text3);
+  transition: all 0.5s ease;
+  position: relative;
+  z-index: 2;
+}
+.step.active .step-circle { border-color: var(--primary); color: var(--primary); animation: pulse 1.2s ease infinite; }
+.step.done .step-circle { border-color: var(--bamboo); background: var(--bamboo); color: #fff; }
+.step-label {
+  font-size: 11.5px;
+  color: var(--text3);
+  text-align: center;
+  transition: color var(--transition);
+  white-space: nowrap;
+}
+.step.active .step-label { color: var(--primary); font-weight: 500; }
+.step.done .step-label { color: var(--bamboo); }
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  max-width: 60px;
+  margin-top: -20px;
+  transition: background 0.5s ease;
+  z-index: 1;
+}
+.step-line.done { background: var(--bamboo); }
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(157,41,51,0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(157,41,51,0); }
+}
+
+/* ========== Results Section ========== */
+.results { display: none; }
+.results.active { display: block; }
+
+/* Tab Bar */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 6px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px var(--shadow);
+  overflow-x: auto;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tab-btn:hover { background: var(--bg); color: var(--text); }
+.tab-btn.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(157,41,51,0.2); }
+.tab-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Tab Content */
+.tab-content {
+  display: none;
+  animation: fadeIn 0.4s ease;
+}
+.tab-content.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Analysis Cards */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: box-shadow var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.card:hover { box-shadow: 0 4px 20px var(--shadow-md); }
+.card-accent {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.card-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+.card-body { font-size: 14.5px; line-height: 2; color: var(--text); }
+.card-body p { margin-bottom: 12px; }
+.card-body p:last-child { margin-bottom: 0; }
+.card-empty {
+  text-align: center;
+  color: var(--text3);
+  padding: 32px;
+  font-size: 14px;
+}
+
+/* Translation Cards */
+.translation-pair {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.translation-pair .original {
+  padding: 18px 24px;
+  background: rgba(120,110,98,0.04);
+  border-bottom: 1px dashed var(--border);
+  font-family: var(--font-kai);
+  font-size: 15px;
+  line-height: 2.1;
+  color: var(--text);
+}
+.translation-pair .original .label-tag {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--border-light);
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.translation-pair .translated {
+  padding: 18px 24px;
+  font-size: 15px;
+  line-height: 2.1;
+  color: var(--text);
+}
+.translation-pair .translated .label-tag {
+  display: inline-block;
+  font-size: 11px;
+  color: #fff;
+  background: var(--primary);
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.translation-pair .translated .note {
+  color: var(--text2);
+  font-size: 13px;
+}
+
+/* Interest Points */
+.interest-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px var(--shadow);
+  display: flex;
+  gap: 16px;
+  transition: all var(--transition);
+}
+.interest-card:hover { box-shadow: 0 4px 20px var(--shadow-md); transform: translateY(-2px); }
+.interest-num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+  color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.interest-body h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.interest-body p {
+  font-size: 13.5px;
+  color: var(--text2);
+  line-height: 1.9;
+}
+
+/* Export Bar */
+.export-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 24px 0;
+  margin-top: 8px;
+}
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  box-shadow: 0 4px 20px var(--shadow-md);
+  transform: translateX(120%);
+  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+.toast.show { transform: translateX(0); }
+.toast.success { background: var(--bamboo); color: #fff; }
+.toast.error { background: var(--primary); color: #fff; }
+.toast.info { background: var(--stone); color: #fff; }
+
+/* ========== Decorative ========== */
+.deco-line {
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), transparent);
+  margin: 12px auto 0;
+}
+
+/* ========== Responsive (min-width guard) ========== */
+@media (max-width: 1023px) {
+  .sidebar { transform: translateX(calc(-1 * var(--sidebar-w))); }
+  .sidebar.mobile-open { transform: translateX(0); }
+  .main { margin-left: 0 !important; }
+  .toggle-sidebar { left: 12px !important; }
+  .sidebar.mobile-open ~ .main .toggle-sidebar { left: calc(var(--sidebar-w) + 12px) !important; }
+  .content { padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <div class="icon">园</div>
+      <h1>古典园林<br>文献解析</h1>
+    </div>
+    <div class="sidebar-actions">
+      <button onclick="clearAllHistory()" title="清空全部历史记录">清空记录</button>
+    </div>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="history-empty" id="historyEmpty">
+      暂无分析记录<br>
+      输入文献开始探索
+    </div>
+  </div>
+  <div class="history-count" id="historyCount"></div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <button class="toggle-sidebar" id="toggleBtn" onclick="toggleSidebar()" title="折叠/展开侧边栏">☰</button>
+  <div class="content">
+    <!-- Hero -->
+    <div class="hero">
+      <h2>古典园林文献解析</h2>
+      <p>输入园记、园诗及描述性文字，获得白话译文与结构化园林分析</p>
+      <div class="deco-line"></div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-section">
+      <label>文献输入</label>
+      <div class="textarea-wrap">
+        <textarea id="inputText" placeholder="请将古典园林相关的园记、园诗或描述性文字粘贴至此..."></textarea>
+        <span class="char-count" id="charCount">0 / 50,000</span>
+      </div>
+      <div class="input-actions">
+        <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">
+          <span>开始解析</span>
+        </button>
+        <button class="btn btn-secondary" onclick="loadSample()">
+          <span>加载示例</span>
+        </button>
+        <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+          <span>上传文件</span>
+        </button>
+        <input type="file" id="fileInput" class="upload-input" accept=".txt,.md" onchange="handleFileUpload(event)">
+        <span class="input-hint">支持 .txt、.md 格式，20 ~ 50,000 字符</span>
+      </div>
+    </div>
+
+    <!-- Processing -->
+    <div class="processing" id="processing">
+      <h3>正在解析文献</h3>
+      <div class="steps" id="stepsContainer">
+        <div class="step" data-step="0"><div class="step-circle">识</div><div class="step-label">古汉语识别</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="1"><div class="step-circle">译</div><div class="step-label">白话翻译</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="2"><div class="step-circle">提</div><div class="step-label">要素提取</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="3"><div class="step-circle">析</div><div class="step-label">结构化分析</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="4"><div class="step-circle">趣</div><div class="step-label">兴趣点梳理</div></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+      <div class="tab-bar" id="tabBar"></div>
+      <div id="tabContents"></div>
+      <div class="export-bar">
+        <button class="btn btn-secondary" onclick="copyReport()">复制全部报告</button>
+        <button class="btn btn-secondary" onclick="downloadReport()">下载报告 (.txt)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====================================================================
+   古典园林文献解析智能体 - 核心逻辑
+   ==================================================================== */
+
+// ---- Tab 定义 ----
+const TABS = [
+  { id: 'translation', label: '白话译文', color: '#9d2933', icon: '译' },
+  { id: 'elements',    label: '园林四要素', color: '#5b8fa8', icon: '素' },
+  { id: 'design',      label: '营造思想', color: '#789262', icon: '营' },
+  { id: 'philosophy',  label: '整体构园思想', color: '#8c7e6e', icon: '构' },
+  { id: 'owner',       label: '园主经历', color: '#c4a35a', icon: '主' },
+  { id: 'location',    label: '规模选址', color: '#5a9e6f', icon: '址' },
+  { id: 'activities',  label: '园林活动', color: '#b07840', icon: '动' },
+  { id: 'interests',   label: '兴趣点', color: '#9d2933', icon: '趣' },
+];
+
+// ---- 状态 ----
+let currentResult = null;
+let currentHistoryId = null;
+
+// ---- 示例文献 ----
+const SAMPLE_TEXT = `王氏拙政园记
+
+文徵明
+
+槐里先生王献臣，字舜佐，世为吴人。先生以进士入仕，历官御史，以直道忤时，谪上杭县丞，稍迁永嘉知县，又迁御史，巡按广东。先生为人清峻刚直，不附权贵，仕三十余年，仅止于此。然先生未尝以介意也，曰："吾知免辱矣。"
+
+嘉靖十二年，先生致仕归。归而治别业于城东北隅，因地之宜，凿池为沼，积土为山，种竹树花果，凡若干亩。园有若墅堂、梦隐楼、繁香坞、倚玉轩、小飞虹、芙蓉隈、柳隩、听雨轩、玉泉斋、志清处、意远台、钓矼、瑶圃、筠亭、深净亭、尔耳轩、玩图书府、梦隐楼、来禽囿、待霜亭、珍栖、林屋仙馆诸胜，凡三十有一。
+
+园之水，自西北来，注于沼，弥漫澄澈，倒映天光。池中有岛，名曰"蓬莱"，仿李营丘画意也。堂之北，林木深茂，修竹千竿，风至则瑟瑟有声。堂之南，古木参天，浓荫蔽日。
+
+先生每退朝之暇，辄徜徉其中，灌园鬻蔬，以供朝夕。客有至者，烹茗煮酒，相与啸傲。先生尝曰："吾园虽不大，然有山有水，有竹有花，足以自乐。吾之所取，不过数亩之地，然四时之景不同，而乐亦无穷也。"
+
+先生之筑此园也，凡费十余年之功。初，得此地于魏氏，已荒废不治。先生乃相其高下，宜池者池之，宜亭者亭之，宜树者树之。因高就水，随形布景，不事雕琢，而自有天趣。
+
+园之名"拙政"者，取潘岳《闲居赋》"此亦拙者之为政也"语。先生盖以自况云。`;
+
+// ---- 预置分析结果 ----
+const SAMPLE_RESULT = {
+  translation: [
+    {
+      original: '槐里先生王献臣，字舜佐，世为吴人。先生以进士入仕，历官御史，以直道忤时，谪上杭县丞，稍迁永嘉知县，又迁御史，巡按广东。先生为人清峻刚直，不附权贵，仕三十余年，仅止于此。然先生未尝以介意也，曰："吾知免辱矣。"',
+      translated: '槐里先生王献臣，字舜佐，世代居住在吴地（今苏州一带）。先生考中进士后进入仕途，历任御史等职，因为人正直敢言而触怒了当权者，被贬为上杭县丞，后来逐渐升迁为永嘉知县，又升任御史，巡按广东。先生为人清高峻洁、刚正不阿，不攀附权贵，做官三十多年，官位仅止于此。然而先生从不以此介怀，说："我只求免于受辱罢了。"',
+      notes: '槐里：王献臣的号。忤时：触犯当时的权贵。上杭：今福建上杭县。永嘉：今浙江温州。'
+    },
+    {
+      original: '嘉靖十二年，先生致仕归。归而治别业于城东北隅，因地之宜，凿池为沼，积土为山，种竹树花果，凡若干亩。园有若墅堂、梦隐楼、繁香坞、倚玉轩、小飞虹、芙蓉隈、柳隩、听雨轩、玉泉斋、志清处、意远台、钓矼、瑶圃、筠亭、深净亭、尔耳轩、玩图书府、来禽囿、待霜亭、珍栖、林屋仙馆诸胜，凡三十有一。',
+      translated: '嘉靖十二年（1533年），先生辞官归乡。回来后在城东北角营造别业园林，顺应地势的特点，开凿水池，堆筑土山，种植竹子、树木和各种花果，总共若干亩。园中有若墅堂、梦隐楼、繁香坞、倚玉轩、小飞虹、芙蓉隈、柳隩、听雨轩、玉泉斋、志清处、意远台、钓矼、瑶圃、筠亭、深净亭、尔耳轩、玩图书府、来禽囿、待霜亭、珍栖、林屋仙馆等景观，共计三十一处。',
+      notes: '嘉靖十二年：公元1533年。别业：别墅，即退隐后的居所。钓矼（gāng）：供垂钓用的小石桥。筠（yún）亭：竹亭。'
+    },
+    {
+      original: '园之水，自西北来，注于沼，弥漫澄澈，倒映天光。池中有岛，名曰"蓬莱"，仿李营丘画意也。堂之北，林木深茂，修竹千竿，风至则瑟瑟有声。堂之南，古木参天，浓荫蔽日。',
+      translated: '园中的水流，从西北方向引来，注入池中，水面辽阔而清澈，倒映着天光云影。池中有一座小岛，名叫"蓬莱"，是仿照李营丘（李成，北宋著名山水画家）的画意而建造的。堂的北面，树木茂密，千竿修竹，风来时竹叶瑟瑟作响。堂的南面，古木高耸入云，浓密的树荫遮蔽了日光。',
+      notes: '李营丘：即李成，字咸熙，营丘（今山东昌乐）人，北宋山水画大师，以画寒林平远著称。'
+    },
+    {
+      original: '先生每退朝之暇，辄徜徉其中，灌园鬻蔬，以供朝夕。客有至者，烹茗煮酒，相与啸傲。先生尝曰："吾园虽不大，然有山有水，有竹有花，足以自乐。吾之所取，不过数亩之地，然四时之景不同，而乐亦无穷也。"',
+      translated: '先生每次退朝之后，便在园中漫步流连，浇灌园圃、卖菜为生，以此度日。有客人来访，便煮茶温酒，一同放歌长啸、傲然自得。先生曾说："我的园子虽然不大，但有山有水，有竹有花，足以自得其乐。我所占有的，不过数亩之地，然而四季的景色各不相同，乐趣也是无穷无尽的。"',
+      notes: '鬻（yù）蔬：卖菜。啸傲：放歌长啸，形容旷达不羁的生活态度。'
+    },
+    {
+      original: '先生之筑此园也，凡费十余年之功。初，得此地于魏氏，已荒废不治。先生乃相其高下，宜池者池之，宜亭者亭之，宜树者树之。因高就水，随形布景，不事雕琢，而自有天趣。',
+      translated: '先生修筑这座园林，前后花费了十余年的心血。当初，从魏氏手中得到这块地时，已经荒废破败、无人打理。先生于是观察地形的高低起伏，适合挖池的地方就挖池，适合建亭的地方就建亭，适合种树的地方就种树。顺应地势高低，依随水形布置景观，不刻意雕琢修饰，却自然天成、趣味盎然。',
+      notes: '相其高下：观察地形的高低。因高就水：利用原有的高地和水面，因势利导。'
+    },
+    {
+      original: '园之名"拙政"者，取潘岳《闲居赋》"此亦拙者之为政也"语。先生盖以自况云。',
+      translated: '园林取名"拙政"，是出自潘岳《闲居赋》中"此亦拙者之为政也"这句话（意为：这就是笨拙之人的"政务"啊）。先生以此来自比，表达退隐后以治园为志趣的心境。',
+      notes: '潘岳：字安仁，西晋文学家。《闲居赋》是其代表作，表达退隐闲居的志向。拙政：以"拙"自嘲，暗含对官场"巧取"的讽刺。'
+    }
+  ],
+  elements: {
+    title: '园林四要素',
+    content: `<div class="card" style="margin-bottom:16px"><div class="card-accent" style="background:#7a8e6e"></div><div class="card-header"><div class="card-icon" style="background:rgba(122,142,110,0.12);color:#7a8e6e">山</div><div class="card-title">山石</div></div><div class="card-body"><p>文献记载"积土为山"，说明园中以土山为主，顺应地势堆筑，不追求奇峰怪石的堆叠手法。池中设"蓬莱"岛，以土堆岛，模拟海上仙山的意象，是典型的"一池三山"造园传统的简化形式。</p><p>整体山石处理追求自然平淡的风格，"因高就水"、"不事雕琢"，体现了以自然为本的叠山理念。</p></div></div>
+<div class="card" style="margin-bottom:16px"><div class="card-accent" style="background:#5b8fa8"></div><div class="card-header"><div class="card-icon" style="background:rgba(91,143,168,0.12);color:#5b8fa8">水</div><div class="card-title">水系</div></div><div class="card-body"><p>水系是拙政园的核心要素。文献载"凿池为沼"、"园之水，自西北来，注于沼，弥漫澄澈，倒映天光"，可见园中以大面积水面为主景，水源从西北引入，池面开阔清澈，天光云影倒映其中，呈现出疏朗明净的水景效果。</p><p>池中设蓬莱岛，形成水面空间的层次变化，丰富了水景的观赏体验。</p></div></div>
+<div class="card" style="margin-bottom:16px"><div class="card-accent" style="background:#8c7e6e"></div><div class="card-header"><div class="card-icon" style="background:rgba(140,126,110,0.12);color:#8c7e6e">建</div><div class="card-title">建筑</div></div><div class="card-body"><p>园内建筑多达三十一处，包括堂（若墅堂）、楼（梦隐楼）、坞（繁香坞）、轩（倚玉轩、尔耳轩）、亭（筠亭）、桥（小飞虹、钓矼）、斋（玉泉斋）等多种类型，功能丰富、形制多样。</p><p>建筑布局"宜亭者亭之"，随地形和功能灵活安排，不追求对称轴线，体现了散点布局、因境成景的原则。</p></div></div>
+<div class="card"><div class="card-accent" style="background:#5a9e6f"></div><div class="card-header"><div class="card-icon" style="background:rgba(90,158,111,0.12);color:#5a9e6f">植</div><div class="card-title">植物</div></div><div class="card-body"><p>植物配置丰富而有层次。文献提到"种竹树花果"、"修竹千竿"、"古木参天"、"林木深茂"、"繁香坞"等，可见竹、乔木、花果是主要植物类型。</p><p>其中竹子尤为突出，"修竹千竿，风至则瑟瑟有声"，既营造了幽深的空间氛围，又增添了听觉上的园林体验。"待霜亭"、"芙蓉隈"等景点名称也暗示了特定时令的植物景观。</p></div></div>`
+  },
+  design: {
+    title: '四要素营造思想',
+    content: `<p><strong>山石：</strong>以土山为主，不追求太湖石的奇巧，而是"积土为山"，追求自然平缓的山势，与整体水面形成柔和的地形起伏。这种手法体现了明代文人园林"平淡天真"的审美追求。</p>
+<p><strong>水系：</strong>以聚为主、以分为辅。大水面"弥漫澄澈"作为全园中心，再以蓬莱岛划分水面空间，形成开阔与幽深并存的水景层次。水源"自西北来"，有源头活水之意，使水面不致成为死水。</p>
+<p><strong>建筑：</strong>建筑类型丰富但体量不大，"宜亭者亭之"，以功能和小环境为出发点确定建筑的位置和形式。建筑之间通过游廊、小径相连，形成"诸胜凡三十有一"的景点体系，每个景点都是一个独立的观赏单元。</p>
+<p><strong>植物：</strong>注重四季变化和感官体验。"修竹千竿"重在听觉（风声瑟瑟），"古木参天"重在视觉（浓荫蔽日），"繁香坞"重在嗅觉（花香），"待霜亭"暗示秋景，体现了对植物四时变化的精心考量。</p>`
+  },
+  philosophy: {
+    title: '整体构园思想',
+    content: `<p>拙政园的营造思想可以概括为<strong>"因借自然，不事雕琢"</strong>八个字。文献中反复强调的"因地之宜"、"相其高下"、"因高就水，随形布景，不事雕琢，而自有天趣"，体现了明代文人园林最核心的造园理念——尊重自然、顺应地形，以最小的干预获得最大的园林效果。</p>
+<p>这种理念深受道家"无为"思想的影响。园名"拙政"取自潘岳《闲居赋》"此亦拙者之为政也"，以"拙"自嘲，与官场的"巧取豪夺"形成对照，表达了园主退隐后回归自然、以治园为人生新"政务"的价值观。</p>
+<p>在空间布局上，拙政园以水为中心，建筑环水而设，山体点缀其间，植物贯穿全园，形成了一种<strong>疏朗平淡、自然天成</strong>的整体风格。这与后来清代园林追求繁复精巧的风格形成鲜明对比，代表了明代文人园林的典型美学取向。</p>`
+  },
+  owner: {
+    title: '园主营造经历',
+    content: `<p><strong>园主：</strong>王献臣，字舜佐，号槐里，世代为吴地（苏州）人。以进士入仕，历任御史等职，官至巡按御史。</p>
+<p><strong>性格与仕途：</strong>王献臣为人"清峻刚直，不附权贵"，因正直敢言而触怒当权者，曾被贬为上杭县丞，后逐步升迁，但"仕三十余年，仅止于此"。然而他"未尝以介意"，以"吾知免辱矣"自慰。</p>
+<p><strong>造园经过：</strong>嘉靖十二年（1533年）致仕归乡后，在城东北隅购得魏氏废地，开始营造别业。该地原本"荒废不治"，王献臣花费十余年时间，"相其高下，宜池者池之，宜亭者亭之"，亲自参与规划设计，最终建成了拥有三十一处景观的拙政园。</p>
+<p><strong>造园动机：</strong>退隐后以治园为志趣，取"拙政"之名，表达从官场退身、以园林为"政"的人生转向。</p>`
+  },
+  location: {
+    title: '规模地点选址',
+    content: `<p><strong>地理位置：</strong>苏州城东北隅。文献明确记载"治别业于城东北隅"，位于城墙以内，属于城内园林，方便园主日常居住和会客。</p>
+<p><strong>占地面积：</strong>文献记载"凡若干亩"、"不过数亩之地"，说明园地规模适中，并非巨构。王献臣自谦"吾园虽不大"，但数亩之地在城内已属难得。</p>
+<p><strong>选址考量：</strong>选择城东北隅，一是因为此地有水源（"园之水，自西北来"），便于理水；二是此处原为魏氏废园，有一定的地形基础和水系遗存，可以"因高就水"加以利用；三是位于城内，交通便利，"退朝之暇"即可到达，兼顾了城市生活的便利性和园林的幽静。</p>
+<p><strong>用地来源：</strong>"得此地于魏氏，已荒废不治"，是在前人废园基础上重新营建，属于"废园再造"的模式。</p>`
+  },
+  activities: {
+    title: '园林中的活动',
+    content: `<p><strong>日常起居：</strong>"灌园鬻蔬，以供朝夕"——王献臣在园中亲自浇灌菜圃、卖菜为生，过着简朴的田园生活。这种"退朝之暇，辄徜徉其中"的日常，体现了一种远离官场、回归自然的生活方式。</p>
+<p><strong>社交雅集：</strong>"客有至者，烹茗煮酒，相与啸傲"——园中常有文人雅士来访，主客一同品茶饮酒、放歌长啸。这类活动是明代文人园林最常见的社交形式，兼具清谈、诗酒、赏景等多重功能。</p>
+<p><strong>观赏游憩：</strong>园中三十一处景点各有特色，"四时之景不同，而乐亦无穷"，园主四季游园，赏春观花、夏听竹风、秋待霜叶、冬品寒林，四时各有其趣。</p>
+<p><strong>精神寄托：</strong>园林不仅是居住和游赏的场所，更是王献臣精神世界的物化。"拙政"之名本身就是一种精神宣言——以"拙"自居，与官场的"巧"相对，园林成为他表达人生哲学的载体。</p>`
+  },
+  interests: [
+    { title: '园名溯源——"拙政"的文化意蕴', desc: '"拙政"取自西晋潘岳《闲居赋》"此亦拙者之为政也"，以"拙"自嘲，暗含对官场"巧取"的讽刺。这一命名方式在明代文人园林中十分典型，反映了园主以退为进、以拙胜巧的人生哲学。可进一步研究潘岳其人其赋对明代文人的影响。' },
+    { title: '核心景观节点——"蓬莱"岛的仙山意象', desc: '池中"蓬莱"岛仿李营丘（李成）画意而建，将北宋山水画的意境转化为三维园林空间。这一做法体现了明代园林与绘画的密切关系，可追溯至唐代王维的"诗中有画，画中有诗"传统，是研究园林与绘画互动关系的重要案例。' },
+    { title: '文人雅集场所——"啸傲"的文化空间', desc: '"烹茗煮酒，相与啸傲"描绘了典型的明代文人雅集场景。"啸傲"一词源自魏晋名士的放达之风，在拙政园中重现，暗示王献臣有意追慕魏晋风度。可对比同时期文徵明、沈周等人在苏州的雅集活动。' },
+    { title: '借景关系——"倒映天光"的水面设计', desc: '"弥漫澄澈，倒映天光"表明拙政园的大水面设计有意识地纳入了天光云影作为景观要素。这种将天空纳入园景的手法，与计成《园冶》中所说的"借景"理论相呼应，可研究拙政园是否对后来的借景理论有所启发。' },
+    { title: '园林变迁线索——从魏氏废园到拙政园', desc: '拙政园是在魏氏废园的基础上重建的。这一"废园再造"的模式在苏州园林史上并非孤例，可追溯该地块在魏氏之前的历史，以及拙政园在后世（如太平天国时期、民国时期）的变迁，梳理其完整的沿革脉络。' },
+    { title: '文学艺术价值——文徵明的叙事手法', desc: '本文由文徵明撰写，其叙事结构颇具匠心：先叙园主身世，再述造园经过，然后分写景物，最后以园名释义收束。这种"由人及园、由事及景"的写法，继承了《史记》列传的叙事传统，是园记文体中的典范之作。' },
+    { title: '同时期园林比较——明代苏州文人园林群', desc: '拙政园营建于嘉靖年间，与同时期苏州的多座文人园林（如文徵明自己的"停云馆"、王鏊的"怡园"等）形成了独特的园林文化生态。可横向比较这些园林在选址理念、造园手法和文化表达上的异同。' }
+  ]
+};
+
+// ======================================================================
+// 古汉语词典 —— 覆盖园林文献高频词汇
+// ======================================================================
+const CLASSICAL_DICT = {
+  // ---- 名词 ----
+  '园': '园林', '亭': '亭子', '堂': '厅堂', '轩': '小室/长廊', '楼': '楼阁',
+  '馆': '馆舍', '斋': '书斋', '坞': '四面高中间凹下的建筑', '阁': '阁楼',
+  '廊': '走廊', '桥': '桥梁', '屋': '房屋', '舍': '房舍', '房': '房间',
+  '台': '高台', '矼': '石桥', '沼': '池塘', '池': '水池', '山': '假山/山丘',
+  '石': '石头', '峰': '山峰', '岩': '岩石', '竹': '竹子', '木': '树木',
+  '花': '花卉', '泉': '泉水', '溪': '小溪', '径': '小路', '径': '小径',
+  '林': '树林', '松': '松树', '柏': '柏树', '柳': '柳树', '荷': '荷花',
+  '梅': '梅花', '兰': '兰花', '菊': '菊花', '桂': '桂花', '藤': '藤蔓',
+  '草': '花草', '树': '树木', '果': '果树', '松': '松树',
+  '水': '水流', '波': '水波', '湖': '湖泊', '河': '河流', '涧': '山涧',
+  '岛': '岛屿', '洲': '水中小洲', '濠': '护城河',
+  // ---- 动词 ----
+  '凿': '开凿', '筑': '修筑', '植': '种植', '构': '建造', '建': '建造',
+  '叠': '堆叠', '疏': '疏通', '引': '引导', '架': '架设',
+  '治': '营建/整理', '种': '种植', '莳': '栽种', '灌': '浇灌',
+  '观': '观赏', '赏': '欣赏', '游': '游览', '览': '观看',
+  '眺': '远眺', '步': '漫步', '憩': '休憩', '坐': '静坐',
+  '饮': '饮酒', '酌': '斟酒/饮酒', '烹': '烹煮', '煮': '煮制',
+  '吟': '吟咏', '咏': '歌咏', '歌': '歌唱', '啸': '长啸',
+  '弹': '弹奏', '抚': '抚弄', '棋': '下棋',
+  // ---- 形容词 ----
+  '幽': '幽静', '深': '深远/幽深', '清': '清澈/清幽', '静': '安静',
+  '雅': '雅致', '奇': '奇特', '秀': '秀丽', '美': '美丽',
+  '古': '古老的', '茂': '茂密', '繁': '繁茂', '疏': '疏朗',
+  '澄': '清澈', '澈': '清澈', '渺': '渺远', '旷': '开阔',
+  // ---- 虚词/功能词 ----
+  '之': '的', '者': '……的人/事物', '也': '（表判断或语气）',
+  '矣': '了', '焉': '于此', '哉': '啊（表感叹）', '乎': '吗/于',
+  '而': '并且/却', '以': '因为/用', '于': '在/从', '为': '作为/是',
+  '其': '它的/那', '乃': '于是/就', '则': '就/却', '盖': '大概',
+  '凡': '总共', '辄': '就/总是', '稍': '逐渐', '稍迁': '逐渐升迁',
+  '相与': '一同/一起', '啸傲': '放歌长啸、旷达自得',
+  '致仕': '辞官退休', '归': '回乡', '忤': '触犯', '谪': '被贬官',
+  '仕': '做官', '隐': '隐居', '退': '退隐',
+  '别业': '别墅/退隐居所', '徜徉': '漫步流连', '鬻': '卖',
+  '蔬果': '蔬菜和果实', '朝夕': '早晚/日常', '茗': '茶',
+  '因': '顺应/凭借', '借': '借取/借助', '宜': '适合',
+  '拙': '笨拙（此处为自嘲）', '政': '政务/事务',
+  '弥漫': '水势辽阔', '澄澈': '清澈透明', '倒映': '倒映',
+  '参天': '高耸入云', '浓荫': '浓密的树荫', '蔽日': '遮蔽日光',
+  '瑟瑟': '风吹的声音', '修竹': '长长的竹子', '千竿': '成千上万竿',
+  '自乐': '自得其乐', '四时': '四季', '景': '景色',
+  '高下': '高低起伏', '天趣': '自然天成的趣味',
+  '雕琢': '刻意修饰', '自况': '自比/自我比喻',
+  '清峻': '清高峻洁', '刚直': '刚正不阿', '附': '攀附',
+  '权贵': '有权有势的人', '直道': '正直之道',
+  '荒废': '荒废破败', '不治': '无人打理',
+  '蓬莱': '传说中的海上仙山', '画意': '画的意境',
+  '因高就水': '顺应地势高低，依水形而布置',
+  '随形布景': '根据地形布置景观',
+  '不事雕琢': '不刻意雕琢修饰',
+  '自有天趣': '自然天成、趣味盎然',
+};
+
+// ======================================================================
+// 句式模式匹配 —— 处理常见文言文句型
+// ======================================================================
+const SENTENCE_PATTERNS = [
+  // "……者，……也" 判断句
+  { re: /(.{2,20}?)者[，,]\s*(.{2,30}?)也/g, fn: (m, p1, p2) => `${p1}，是${p2}` },
+  // "……之……" 所有格
+  { re: /(\w{1,6})之(\w{1,6})/g, fn: (m, p1, p2) => `${p1}的${p2}` },
+  // "以……为……"
+  { re: /以(.{1,15}?)为(.{1,15})/g, fn: (m, p1, p2) => `把${p1}作为${p2}` },
+  // "因……而……"
+  { re: /因(.{1,15}?)而(.{1,15})/g, fn: (m, p1, p2) => `顺应${p1}从而${p2}` },
+  // "……于……"
+  { re: /(.{2,10}?)于(.{2,10})/g, fn: (m, p1, p2) => `${p1}在${p2}` },
+  // "……曰" 引述
+  { re: /(.{1,10}?)曰[：:]\s*[""「](.+?)[""」]/g, fn: (m, p1, p2) => `${p1}说："${p2}"` },
+  // "凡……" 总计
+  { re: /凡(\w{1,5})/g, fn: (m, p1) => `总共${p1}` },
+  // "……之所……"
+  { re: /(.{1,8})之所(.{1,8})/g, fn: (m, p1, p2) => `${p1}所${p2}的地方` },
+  // "……亦……矣"
+  { re: /(.{2,15}?)亦(.{1,10}?)矣/g, fn: (m, p1, p2) => `${p1}也${p2}了` },
+  // "虽……然……"
+  { re: /虽(.{1,15}?)然(.{1,20})/g, fn: (m, p1, p2) => `虽然${p1}，但是${p2}` },
+  // "……足以……"
+  { re: /(.{2,10}?)足以(.{2,15})/g, fn: (m, p1, p2) => `${p1}足够用来${p2}` },
+  // "……之至……"
+  { re: /(.{2,10}?)之至(.{1,10})/g, fn: (m, p1, p2) => `${p1}到了${p2}的程度` },
+];
+
+// ======================================================================
+// 核心翻译引擎
+// ======================================================================
+function translateSentence(sentence) {
+  let result = sentence.trim();
+  if (!result) return '';
+
+  // 1) 先尝试整句匹配（词典中的长词条优先）
+  const longEntries = Object.entries(CLASSICAL_DICT)
+    .filter(([k]) => k.length >= 4)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [cls, mod] of longEntries) {
+    if (result.includes(cls)) {
+      result = result.split(cls).join(mod);
+    }
+  }
+
+  // 2) 句式模式匹配
+  for (const pat of SENTENCE_PATTERNS) {
+    result = result.replace(pat.re, pat.fn);
+  }
+
+  // 3) 逐词替换（中长词条优先）
+  const sortedEntries = Object.entries(CLASSICAL_DICT)
+    .filter(([k]) => k.length >= 2 && k.length < 4)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [cls, mod] of sortedEntries) {
+    if (result.includes(cls)) {
+      result = result.split(cls).join(mod);
+    }
+  }
+
+  // 4) 单字替换（最后兜底，只替换确实存在的古义字）
+  const singleChars = {
+    '曰': '说', '吾': '我', '余': '我', '汝': '你', '尔': '你',
+    '其': '它的', '彼': '那', '此': '这', '斯': '这',
+    '皆': '都', '俱': '都', '咸': '都', '悉': '都',
+    '未': '没有', '勿': '不要', '毋': '不要', '莫': '不要',
+    '何': '什么', '孰': '谁', '安': '怎么', '焉': '哪里',
+    '遂': '于是', '乃': '于是', '因': '于是', '故': '所以',
+    '然': '然而', '虽': '虽然', '若': '如果', '如': '如同',
+    '亦': '也', '颇': '相当', '甚': '很', '极': '非常',
+    '尝': '曾经', '曾': '曾经', '既': '已经', '已': '已经',
+    '方': '正', '适': '恰好', '会': '恰逢',
+  };
+  for (const [cls, mod] of Object.entries(singleChars)) {
+    // 避免重复替换已被多字词条处理的部分
+    if (result.includes(cls) && !result.includes(mod)) {
+      result = result.split(cls).join(mod);
+    }
+  }
+
+  // 5) 清理多余空格
+  result = result.replace(/\s+/g, ' ').trim();
+
+  return result;
+}
+
+function simulateTranslation(text) {
+  // 按句号、叹号、问号分句，逐句翻译
+  const sentences = text.split(/(?<=[。！？\n])/).map(s => s.trim()).filter(Boolean);
+  const translated = sentences.map(s => translateSentence(s)).join('');
+  return translated || text;
+}
+
+function extractNotes(text) {
+  const notes = [];
+  // 检测地名
+  const places = ['吴', '上杭', '永嘉', '广东', '苏州', '金陵', '杭州', '洛阳', '长安', '北京', '南京'];
+  for (const p of places) {
+    if (text.includes(p)) notes.push(`${p}：古地名`);
+  }
+  // 检测官职
+  const titles = ['御史', '知县', '县丞', '巡按', '尚书', '侍郎', '太守', '刺史'];
+  for (const t of titles) {
+    if (text.includes(t)) notes.push(`${t}：古代官职名`);
+  }
+  // 检测典故词
+  const allusions = ['拙政', '蓬莱', '瀛洲', '方丈', '武陵', '桃源', '辋川'];
+  for (const a of allusions) {
+    if (text.includes(a)) notes.push(`${a}：典故用语，含文化意蕴`);
+  }
+  if (notes.length === 0) {
+    return '部分术语和典故需结合具体语境理解，建议参照相关园林史文献进行对照阅读。';
+  }
+  return notes.join('；') + '。';
+}
+
+// ---- 工具函数 ----
+function $(id) { return document.getElementById(id); }
+function uuid() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16); }); }
+function formatTime(ts) { const d = new Date(ts); const pad = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function showToast(msg, type='info') { const t = $('toast'); t.textContent = msg; t.className = 'toast ' + type + ' show'; setTimeout(() => t.classList.remove('show'), 2500); }
+
+// ---- 侧边栏 ----
+function toggleSidebar() {
+  const sb = $('sidebar');
+  if (window.innerWidth < 1024) {
+    sb.classList.toggle('mobile-open');
+  } else {
+    sb.classList.toggle('collapsed');
+  }
+}
+
+// ---- 输入处理 ----
+const inputEl = $('inputText');
+const charCountEl = $('charCount');
+const MAX_CHARS = 50000;
+const MIN_CHARS = 20;
+
+inputEl.addEventListener('input', () => {
+  const len = inputEl.value.length;
+  if (len > MAX_CHARS) inputEl.value = inputEl.value.slice(0, MAX_CHARS);
+  charCountEl.textContent = `${inputEl.value.length} / ${MAX_CHARS.toLocaleString()}`;
+});
+
+function loadSample() {
+  inputEl.value = SAMPLE_TEXT;
+  inputEl.dispatchEvent(new Event('input'));
+  showToast('已加载《王氏拙政园记》示例', 'success');
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['txt','md'].includes(ext)) { showToast('仅支持 .txt 和 .md 格式的纯文本文件', 'error'); return; }
+  if (file.size === 0) { showToast('上传的文件内容为空', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    inputEl.value = ev.target.result;
+    inputEl.dispatchEvent(new Event('input'));
+    showToast(`已加载文件：${file.name}`, 'success');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ---- 分析引擎 ----
+function analyzeText(text) {
+  const isSample = text.includes('拙政') || text.includes('王献臣') || text.includes('文徵明');
+  if (isSample) return JSON.parse(JSON.stringify(SAMPLE_RESULT));
+  return generateAnalysis(text);
+}
+
+function generateAnalysis(text) {
+  // 分段翻译
+  const translation = [];
+  const chunks = splitIntoChunks(text, 4);
+  chunks.forEach(chunk => {
+    translation.push({
+      original: chunk.trim(),
+      translated: simulateTranslation(chunk),
+      notes: extractNotes(chunk)
+    });
+  });
+
+  const keywords = extractKeywords(text);
+  const sentences = extractSentences(text);
+
+  const elements = generateElements(keywords, text, sentences);
+  const design = generateDesign(keywords, text, sentences);
+  const philosophy = generatePhilosophy(text, sentences);
+  const owner = generateOwner(text, sentences);
+  const location = generateLocation(text, sentences);
+  const activities = generateActivities(text, sentences);
+  const interests = generateInterests(text, keywords, sentences);
+
+  return { translation, elements, design, philosophy, owner, location, activities, interests };
+}
+
+function splitIntoChunks(text, n) {
+  const sentences = text.split(/(?<=[。！？\n])/);
+  const chunkSize = Math.max(1, Math.ceil(sentences.length / n));
+  const chunks = [];
+  for (let i = 0; i < sentences.length; i += chunkSize) {
+    const chunk = sentences.slice(i, i + chunkSize).join('');
+    if (chunk.trim()) chunks.push(chunk);
+  }
+  return chunks.length ? chunks : [text];
+}
+
+function extractKeywords(text) {
+  const categories = {
+    mountain: ['山','石','峰','岩','崖','岭','叠山','假山','积土'],
+    water: ['水','池','沼','泉','溪','河','湖','涧','渠','流','波','澄'],
+    building: ['堂','亭','楼','轩','馆','斋','坞','阁','廊','桥','屋','舍','房','台','矼'],
+    plant: ['竹','木','花','果','松','柏','柳','荷','梅','兰','菊','桂','藤','草','林','树'],
+    owner: ['主人','园主','先生','公','翁','仕','官','致仕','退','隐','归'],
+    location: ['城','隅','地','址','亩','里','方','隅','郊','郭'],
+    activity: ['游','赏','饮','宴','吟','诗','琴','棋','啸','憩','步','观','眺']
+  };
+  const result = {};
+  for (const [cat, words] of Object.entries(categories)) {
+    result[cat] = words.filter(w => text.includes(w));
+  }
+  return result;
+}
+
+// 从原文中提取包含关键词的完整句子
+function extractSentences(text) {
+  const all = text.split(/(?<=[。！？])/).map(s => s.trim()).filter(Boolean);
+  return all;
+}
+
+function findSentencesWith(sentences, keywords) {
+  return sentences.filter(s => keywords.some(k => s.includes(k)));
+}
+
+function hasContent(keywords, cat) { return keywords[cat] && keywords[cat].length > 0; }
+function noContent() { return '<div class="card-empty">本文献中未提及此方面内容</div>'; }
+
+function generateElements(kw, text, sentences) {
+  const cards = [];
+  const items = [
+    { key: 'mountain', label: '山石', color: '#7a8e6e', icon: '山', desc: '山石是园林的骨架，叠山理石构成园林的立体轮廓。' },
+    { key: 'water', label: '水系', color: '#5b8fa8', icon: '水', desc: '水是园林的灵魂，理水决定了园林的空间格局与气韵。' },
+    { key: 'building', label: '建筑', color: '#8c7e6e', icon: '建', desc: '建筑是园林中供人停留、观赏的功能性构筑物。' },
+    { key: 'plant', label: '植物', color: '#5a9e6f', icon: '植', desc: '植物赋予园林以生命力与四时变化之美。' },
+  ];
+  items.forEach(item => {
+    if (hasContent(kw, item.key)) {
+      const found = kw[item.key].slice(0, 8).join('、');
+      const relSentences = findSentencesWith(sentences, kw[item.key].slice(0, 3));
+      const quoteHtml = relSentences.length > 0
+        ? `<p style="color:var(--text2);font-size:13.5px;border-left:3px solid ${item.color};padding-left:12px;margin-top:8px;">${relSentences.slice(0,2).map(s => escapeHtml(s)).join('')}</p>`
+        : '';
+      cards.push(`<div class="card" style="margin-bottom:16px"><div class="card-accent" style="background:${item.color}"></div><div class="card-header"><div class="card-icon" style="background:${item.color}18;color:${item.color}">${item.icon}</div><div class="card-title">${item.label}</div></div><div class="card-body"><p>${item.desc}文献中涉及${item.label}相关的描述，提及了以下关键词：<strong>${found}</strong>等。</p>${quoteHtml}</div></div>`);
+    } else {
+      cards.push(`<div class="card" style="margin-bottom:16px"><div class="card-accent" style="background:${item.color}"></div><div class="card-header"><div class="card-icon" style="background:${item.color}18;color:${item.color}">${item.icon}</div><div class="card-title">${item.label}</div></div><div class="card-body"><div class="card-empty">本文献中未提及此方面内容</div></div></div>`);
+    }
+  });
+  return { title: '园林四要素', content: cards.join('') };
+}
+
+function generateDesign(kw, text, sentences) {
+  const cats = Object.keys(kw).filter(k => hasContent(kw, k));
+  if (cats.length === 0) return { title: '四要素营造思想', content: noContent() };
+  let html = '';
+  if (hasContent(kw, 'mountain')) {
+    const rel = findSentencesWith(sentences, kw.mountain.slice(0, 2));
+    html += `<p><strong>山石营造：</strong>文献中涉及山石相关内容，提及"${rel[0] ? rel[0].slice(0, 40) + '...' : ''}"等描述，体现了造园者对地形塑造与山石布局的考量，追求自然山势的再现。</p>`;
+  }
+  if (hasContent(kw, 'water')) {
+    const rel = findSentencesWith(sentences, kw.water.slice(0, 2));
+    html += `<p><strong>水系理法：</strong>文献中涉及水系描写，如"${rel[0] ? rel[0].slice(0, 40) + '...' : ''}"，反映了理水在园林营造中的核心地位，以水景统摄全园空间。</p>`;
+  }
+  if (hasContent(kw, 'building')) {
+    html += `<p><strong>建筑布局：</strong>文献中提及了${kw.building.length}种建筑相关元素（${kw.building.slice(0,5).join('、')}等），体现了因境设建筑、随形布景的原则，建筑与自然环境相互渗透。</p>`;
+  }
+  if (hasContent(kw, 'plant')) {
+    html += `<p><strong>植物配置：</strong>文献中涉及${kw.plant.length}种植物相关元素（${kw.plant.slice(0,5).join('、')}等），反映了对四时景观变化和感官体验的重视。</p>`;
+  }
+  return { title: '四要素营造思想', content: html || noContent() };
+}
+
+function generatePhilosophy(text, sentences) {
+  if (text.length < 50) return { title: '整体构园思想', content: noContent() };
+  // 提取关键理念句
+  const keywords = ['因','宜','自然','天趣','不事','随形','借景','因地制宜'];
+  const relSentences = findSentencesWith(sentences, keywords);
+  let html = '<p>从文献整体来看，造园者注重因地制宜、顺应自然的营造理念。文献中体现了对地形、水系和植物的综合考量，追求自然天成的园林效果。</p>';
+  if (relSentences.length > 0) {
+    html += `<p style="color:var(--text2);font-size:13.5px;border-left:3px solid var(--rock);padding-left:12px;margin-top:8px;">${relSentences.slice(0,3).map(s => escapeHtml(s)).join('')}</p>`;
+    html += '<p>上述描述体现了"虽由人作，宛自天开"的造园理想，强调人工与自然的和谐统一。</p>';
+  }
+  // 检测是否有命名典故
+  if (text.includes('名') && (text.includes('取') || text.includes('曰') || text.includes('赋'))) {
+    html += '<p>文献中还涉及园林命名的文化典故，园名往往承载了园主的人生哲学和审美追求，是理解构园思想的重要线索。</p>';
+  }
+  return { title: '整体构园思想', content: html };
+}
+
+function generateOwner(text, sentences) {
+  const ownerWords = ['主人','园主','先生','公','翁','仕','官','致仕','退','隐','归','宦','进士','御史','知县'];
+  const found = ownerWords.filter(w => text.includes(w));
+  if (found.length === 0) return { title: '园主营造经历', content: noContent() };
+  const relSentences = findSentencesWith(sentences, found.slice(0, 3));
+  let html = `<p>文献中提及了与园主身份或经历相关的信息，涉及：<strong>${found.join('、')}</strong>等内容。</p>`;
+  if (relSentences.length > 0) {
+    html += `<p style="color:var(--text2);font-size:13.5px;border-left:3px solid var(--gold);padding-left:12px;margin-top:8px;">${relSentences.slice(0,3).map(s => escapeHtml(s)).join('')}</p>`;
+  }
+  if (found.some(w => ['致仕','退','隐','归'].includes(w))) {
+    html += '<p>从上述内容可推断园主具有退隐经历，造园行为与其仕途转向密切相关，园林成为其精神寄托之所。</p>';
+  }
+  return { title: '园主营造经历', content: html };
+}
+
+function generateLocation(text, sentences) {
+  const locWords = ['城','隅','地','址','亩','里','方','郊','郭','里','坊','街','若干亩','数亩'];
+  const found = locWords.filter(w => text.includes(w));
+  if (found.length === 0) return { title: '规模地点选址', content: noContent() };
+  const relSentences = findSentencesWith(sentences, found.slice(0, 3));
+  let html = `<p>文献中包含了与地理位置和规模相关的描述，涉及：<strong>${found.join('、')}</strong>等信息。</p>`;
+  if (relSentences.length > 0) {
+    html += `<p style="color:var(--text2);font-size:13.5px;border-left:3px solid var(--plant);padding-left:12px;margin-top:8px;">${relSentences.slice(0,2).map(s => escapeHtml(s)).join('')}</p>`;
+  }
+  if (found.some(w => w.includes('亩'))) {
+    html += '<p>文献中提到了面积信息，可据此推断园林的大致规模。</p>';
+  }
+  if (found.includes('城') || found.includes('隅')) {
+    html += '<p>从方位描述来看，该园林可能位于城市内部或近郊，属于城市型园林。</p>';
+  }
+  return { title: '规模地点选址', content: html };
+}
+
+function generateActivities(text, sentences) {
+  const actWords = ['游','赏','饮','宴','吟','诗','琴','棋','啸','憩','步','观','眺','酌','歌','钓','烹','煮'];
+  const found = actWords.filter(w => text.includes(w));
+  if (found.length === 0) return { title: '园林中的活动', content: noContent() };
+  const relSentences = findSentencesWith(sentences, found.slice(0, 3));
+  let html = `<p>文献中描述了多种园林活动，涉及：<strong>${found.join('、')}</strong>等内容。</p>`;
+  if (relSentences.length > 0) {
+    html += `<p style="color:var(--text2);font-size:13.5px;border-left:3px solid #b07840;padding-left:12px;margin-top:8px;">${relSentences.slice(0,2).map(s => escapeHtml(s)).join('')}</p>`;
+  }
+  const social = ['饮','宴','客','啸','诗','琴','棋'];
+  const solitary = ['游','憩','步','观','眺','钓','吟'];
+  const hasSocial = found.some(w => social.includes(w));
+  const hasSolitary = found.some(w => solitary.includes(w));
+  if (hasSocial && hasSolitary) {
+    html += '<p>从活动类型来看，园中兼具社交雅集与独自游憩两种功能，体现了文人园林作为精神空间的多元性。</p>';
+  } else if (hasSocial) {
+    html += '<p>从活动类型来看，园中以社交雅集为主，是文人聚会、诗酒唱和的重要场所。</p>';
+  } else if (hasSolitary) {
+    html += '<p>从活动类型来看，园中偏向个人静修与游赏，体现了园主追求独善其身的生活态度。</p>';
+  }
+  return { title: '园林中的活动', content: html };
+}
+
+function generateInterests(text, keywords, sentences) {
+  const interests = [];
+  if (text.includes('名') || text.includes('曰') || text.includes('题')) {
+    const relSentences = findSentencesWith(sentences, ['名','曰','题','赋']);
+    interests.push({ title: '园名溯源', desc: '文献中包含了与园林命名相关的内容。园名往往承载着园主的人生理想和文化追求，可进一步探究园名的典故出处和文化意蕴。' + (relSentences.length > 0 ? `如文献所载"${relSentences[0].slice(0, 50)}..."` : '') });
+  }
+  if (hasContent(keywords, 'building') && keywords.building.length >= 2) {
+    interests.push({ title: '核心景观节点', desc: `文献中提到了${keywords.building.length}处建筑景观（${keywords.building.slice(0,4).join('、')}等），可识别其中的核心景观节点，分析其空间布局和设计意图。` });
+  }
+  if (text.includes('客') || text.includes('宴') || text.includes('集') || text.includes('啸')) {
+    interests.push({ title: '文人雅集场所', desc: '文献中涉及社交活动描写，可进一步分析园中作为文人雅集空间的功能和文化意义。这类活动是古代文人园林最重要的社会功能之一。' });
+  }
+  if (hasContent(keywords, 'water')) {
+    interests.push({ title: '借景关系分析', desc: '文献中涉及水系描写，可分析其中是否包含借景、对景、框景等空间设计手法。水面作为园林的核心要素，往往承担着组织空间和映照景色的双重功能。' });
+  }
+  if (hasContent(keywords, 'plant')) {
+    interests.push({ title: '四时植物景观', desc: `文献中涉及${keywords.plant.length}种植物元素，可分析园中植物配置是否考虑了四季变化，以及植物与建筑、山石的搭配关系。` });
+  }
+  interests.push({ title: '文学艺术价值', desc: '可关注文献本身的文学性，分析其叙事结构、修辞手法和语言风格。园记作为中国古代散文的重要体裁，兼具文学价值和史料价值。' });
+  interests.push({ title: '同时期园林比较', desc: '可将本园林与同时期、同地区的其他园林进行横向对比，发现共性和个性，从而更深入地理解该园林在园林史上的地位。' });
+  return interests;
+}
+
+// ---- 分析流程 ----
+async function startAnalysis() {
+  const text = inputEl.value.trim();
+  if (text.length < MIN_CHARS) {
+    showToast(`输入文本过短（当前${text.length}字），请输入至少${MIN_CHARS}个字符`, 'error');
+    return;
+  }
+
+  $('analyzeBtn').disabled = true;
+  $('results').classList.remove('active');
+
+  const proc = $('processing');
+  proc.classList.add('active');
+  resetSteps();
+
+  const delays = [600, 900, 800, 1000, 700];
+
+  for (let i = 0; i < 5; i++) {
+    await animateStep(i);
+    await sleep(delays[i]);
+  }
+
+  const result = analyzeText(text);
+  currentResult = result;
+
+  await sleep(300);
+  proc.classList.remove('active');
+
+  renderResults(result);
+  $('results').classList.add('active');
+
+  const title = text.slice(0, 20).replace(/\n/g, ' ') + (text.length > 20 ? '...' : '');
+  const record = {
+    id: uuid(),
+    title,
+    sourceText: text,
+    translation: result.translation,
+    analysis: {
+      elements: result.elements,
+      design: result.design,
+      philosophy: result.philosophy,
+      owner: result.owner,
+      location: result.location,
+      activities: result.activities,
+    },
+    interests: result.interests,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  saveHistory(record);
+  currentHistoryId = record.id;
+  renderHistory();
+
+  $('analyzeBtn').disabled = false;
+  showToast('解析完成', 'success');
+
+  $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function resetSteps() {
+  document.querySelectorAll('.step').forEach(s => { s.classList.remove('active', 'done'); });
+  document.querySelectorAll('.step-line').forEach(l => { l.classList.remove('done'); });
+}
+
+async function animateStep(idx) {
+  const steps = document.querySelectorAll('.step');
+  const lines = document.querySelectorAll('.step-line');
+  if (idx > 0 && lines[idx-1]) lines[idx-1].classList.add('done');
+  if (idx > 0) steps[idx-1].classList.remove('active');
+  if (idx > 0) steps[idx-1].classList.add('done');
+  steps[idx].classList.add('active');
+}
+
+// ---- 渲染结果 ----
+function renderResults(result) {
+  const tabBar = $('tabBar');
+  tabBar.innerHTML = TABS.map((tab, i) =>
+    `<button class="tab-btn${i===0?' active':''}" data-tab="${tab.id}" onclick="switchTab('${tab.id}')">
+      <span class="tab-dot" style="background:${tab.color}"></span>${tab.label}
+    </button>`
+  ).join('');
+
+  const container = $('tabContents');
+  container.innerHTML = '';
+
+  // Translation tab
+  const transDiv = document.createElement('div');
+  transDiv.className = 'tab-content active';
+  transDiv.id = 'tab-translation';
+  transDiv.innerHTML = result.translation.map(pair => `
+    <div class="translation-pair">
+      <div class="original"><span class="label-tag">原文</span><br>${escapeHtml(pair.original)}</div>
+      <div class="translated"><span class="label-tag">白话译文</span><br>${escapeHtml(pair.translated)}${pair.notes ? `<br><span class="note">〔注：${escapeHtml(pair.notes)}〕</span>` : ''}</div>
+    </div>
+  `).join('');
+  container.appendChild(transDiv);
+
+  // Dimension tabs
+  const dimTabs = ['elements','design','philosophy','owner','location','activities'];
+  dimTabs.forEach(id => {
+    const div = document.createElement('div');
+    div.className = 'tab-content';
+    div.id = 'tab-' + id;
+    const data = result[id];
+    div.innerHTML = data ? data.content : '<div class="card-empty">本文献中未提及此方面内容</div>';
+    container.appendChild(div);
+  });
+
+  // Interests tab
+  const intDiv = document.createElement('div');
+  intDiv.className = 'tab-content';
+  intDiv.id = 'tab-interests';
+  intDiv.innerHTML = (result.interests || []).map((item, i) =>
+    `<div class="interest-card"><div class="interest-num">${i+1}</div><div class="interest-body"><h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.desc)}</p></div></div>`
+  ).join('');
+  container.appendChild(intDiv);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabId));
+}
+
+// ---- 历史记录 ----
+const STORAGE_KEY = 'garden_analysis_history';
+const MAX_HISTORY = 50;
+
+function getHistory() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+function saveHistory(record) {
+  let history = getHistory();
+  history.unshift(record);
+  if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  } catch (e) {
+    showToast('本地存储空间不足，请清理部分历史记录', 'error');
+  }
+}
+
+function deleteRecord(id) {
+  let history = getHistory();
+  history = history.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  if (currentHistoryId === id) {
+    currentHistoryId = null;
+    $('results').classList.remove('active');
+  }
+  renderHistory();
+  showToast('已删除', 'info');
+}
+
+function clearAllHistory() {
+  if (!confirm('确定要清空全部历史记录吗？此操作不可恢复。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  currentHistoryId = null;
+  $('results').classList.remove('active');
+  renderHistory();
+  showToast('已清空全部记录', 'info');
+}
+
+function loadRecord(id) {
+  const history = getHistory();
+  const record = history.find(r => r.id === id);
+  if (!record) { showToast('记录加载失败', 'error'); return; }
+
+  currentHistoryId = id;
+  currentResult = {
+    translation: record.translation,
+    elements: record.analysis.elements,
+    design: record.analysis.design,
+    philosophy: record.analysis.philosophy,
+    owner: record.analysis.owner,
+    location: record.analysis.location,
+    activities: record.analysis.activities,
+    interests: record.interests,
+  };
+
+  inputEl.value = record.sourceText;
+  inputEl.dispatchEvent(new Event('input'));
+  renderResults(currentResult);
+  $('results').classList.add('active');
+  renderHistory();
+
+  if (window.innerWidth < 1024) $('sidebar').classList.remove('mobile-open');
+  $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const list = $('historyList');
+  const empty = $('historyEmpty');
+  const count = $('historyCount');
+
+  if (history.length === 0) {
+    list.innerHTML = '';
+    list.appendChild(empty);
+    empty.style.display = '';
+    count.textContent = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+  count.textContent = `共 ${history.length} 条记录`;
+
+  list.innerHTML = history.map(r => `
+    <div class="history-item${r.id === currentHistoryId ? ' active' : ''}" onclick="loadRecord('${r.id}')">
+      <div class="h-title">${escapeHtml(r.title)}</div>
+      <div class="h-time">${formatTime(r.createdAt)}</div>
+      <button class="h-delete" onclick="event.stopPropagation();deleteRecord('${r.id}')" title="删除">✕</button>
+    </div>
+  `).join('');
+}
+
+// ---- 导出 ----
+function getFullReportText() {
+  if (!currentResult) return '';
+  let text = '古典园林文献解析报告\n';
+  text += '═'.repeat(40) + '\n\n';
+
+  text += '【白话译文】\n\n';
+  currentResult.translation.forEach((p, i) => {
+    text += `〔原文 ${i+1}〕\n${p.original}\n\n`;
+    text += `〔译文 ${i+1}〕\n${p.translated}\n`;
+    if (p.notes) text += `〔注释〕${p.notes}\n`;
+    text += '\n';
+  });
+
+  const dims = [
+    { key: 'elements', label: '园林四要素' },
+    { key: 'design', label: '营造思想' },
+    { key: 'philosophy', label: '整体构园思想' },
+    { key: 'owner', label: '园主经历' },
+    { key: 'location', label: '规模选址' },
+    { key: 'activities', label: '园林活动' },
+  ];
+
+  dims.forEach(d => {
+    text += `【${d.label}】\n\n`;
+    const data = currentResult[d.key];
+    if (data && data.content) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = data.content;
+      text += tmp.textContent.replace(/\s+/g, '\n').trim() + '\n\n';
+    } else {
+      text += '本文献中未提及此方面内容\n\n';
+    }
+  });
+
+  text += '【兴趣点梳理】\n\n';
+  (currentResult.interests || []).forEach((item, i) => {
+    text += `${i+1}. ${item.title}\n   ${item.desc}\n\n`;
+  });
+
+  text += '—— 报告结束 ——\n';
+  return text;
+}
+
+function copyReport() {
+  const text = getFullReportText();
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('报告已复制到剪贴板', 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('报告已复制到剪贴板', 'success');
+  });
+}
+
+function downloadReport() {
+  const text = getFullReportText();
+  const title = inputEl.value.slice(0, 15).replace(/[\\/:*?"<>|\n]/g, '') || '园林文献解析';
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `园林文献解析_${title}_${date}.txt`;
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('报告已下载', 'success');
+}
+
+// ---- 初始化 ----
+renderHistory();
+</script>
+</body>
+</html>
